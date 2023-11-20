@@ -95,7 +95,7 @@ async def spreadsheets_update_value(
         'values': table_values
     }
     new_row_count = len(projects)
-    response = await wrapper_services.as_service_account(
+    await wrapper_services.as_service_account(
         service.spreadsheets.values.update(
             spreadsheetId=spreadsheetid,
             range=RANGE_FIELD.format(len=new_row_count + COUNT_TABLE_HEAD_ROW),
