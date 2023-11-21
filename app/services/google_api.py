@@ -10,22 +10,17 @@ from app.models import CharityProject
 FORMAT = "%Y/%m/%d %H:%M:%S"
 
 COLUMN_COUNT = 3
-LOCALE = 'ru_RU'
 ROW_COUNT = 100
-TITLE_SHEET = 'Список закрытых проектов'
-TITLE_FILE = 'Отчёт от {}'
-SHEET_ID = 0
-SHEET_TYPE = 'GRID'
 
 SHEET_BODY = dict(
     properties=dict(
-        title=TITLE_FILE,
-        locale=LOCALE,
+        title='Отчёт от {}',
+        locale='ru_RU',
     ),
     sheets=[dict(properties=dict(
-        sheetType=SHEET_TYPE,
-        sheetId=SHEET_ID,
-        title=TITLE_SHEET,
+        sheetType='GRID',
+        sheetId=0,
+        title='Список закрытых проектов',
         gridProperties=dict(
             rowCount=ROW_COUNT,
             columnCount=COLUMN_COUNT,
@@ -46,26 +41,26 @@ TABLE_HEAD = [
 ]
 
 COLUMN_ERROR = (
-    'Передано неверное количество столбцов.'
-    'Передано {input}. Должно быть {expect}'
+    'Передано неверное количество столбцов. Передано {input}.'
+    f'Ограничение по максимуму: {COLUMN_COUNT}'
 )
 ROW_ERROR = (
-    'Передано неверное количество строк.'
-    'Передано {input}. Должно быть {expect}'
+    'Передано неверное количество строк. Передано {input}.'
+    f'Ограничение по максимуму: {ROW_COUNT}'
 )
 
 
 async def spreadsheets_create(
     wrapper_services: Aiogoogle,
-    spreadsheet_body: dict[str, dict] = deepcopy(SHEET_BODY)
+    body: dict[str, dict] = SHEET_BODY
 ) -> str:
+    spreadsheet_body = deepcopy(body)
     spreadsheet_body['properties']['title'] = datetime.now().strftime(FORMAT)
     service = await wrapper_services.discover('sheets', 'v4')
     response = await wrapper_services.as_service_account(
         service.spreadsheets.create(json=spreadsheet_body)
     )
-    spreadsheet_id = response['spreadsheetId']
-    return spreadsheet_id
+    return response['spreadsheetId'], response['spreadsheetUrl']
 
 
 async def set_user_permissions(
@@ -89,8 +84,9 @@ async def spreadsheets_update_value(
     spreadsheet_id: str,
     projects: list[CharityProject],
     wrapper_services: Aiogoogle,
-    head: list[list[str]] = deepcopy(TABLE_HEAD)
+    table_head: list[list[str]] = TABLE_HEAD
 ) -> None:
+    head = deepcopy(table_head)
     service = await wrapper_services.discover('sheets', 'v4')
     head[0][1] = datetime.now().strftime(FORMAT)
     table_values = [
@@ -107,12 +103,12 @@ async def spreadsheets_update_value(
     new_row_count = len(table_values)
     if new_row_count > ROW_COUNT:
         raise ValueError(
-            ROW_ERROR.format(input=new_row_count, expect=ROW_COUNT)
+            ROW_ERROR.format(input=new_row_count)
         )
-    len_columns = max(len(row) for row in head)
+    len_columns = max(map(len, head))
     if len_columns > COLUMN_COUNT:
         raise ValueError(
-            COLUMN_ERROR.format(input=len_columns, expect=COLUMN_COUNT)
+            COLUMN_ERROR.format(input=len_columns)
         )
     await wrapper_services.as_service_account(
         service.spreadsheets.values.update(
