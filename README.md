@@ -15,6 +15,7 @@
 - Sqlalchemy
 - pydantic
 - JWT
+- aiogoogle 
 
 ## Документация
 Для просмотра документации
